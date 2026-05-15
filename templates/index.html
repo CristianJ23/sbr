@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SBR DIDÁCTICO - TURISMO</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body class="dark-mode">
+    <header class="main-header">
+        <div class="header-content">
+            <h1 class="glitch" data-text="SISTEMA EXPERTO">SISTEMA EXPERTO</h1>
+            <p class="subtitle">Aprendizaje Didáctico sobre Sistemas Basados en Reglas (SBR)</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Guía paso a paso -->
+        <section class="glass-panel tutorial-banner">
+            <h2><span class="icon">🎓</span> EXPLICACIÓN DEL SISTEMA</h2>
+            <div class="step-guide">
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <p><strong>Hechos:</strong> Marcas lo que te gusta en la Memoria de Trabajo.</p>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <p><strong>Razonamiento:</strong> El motor busca reglas que encajen con tus gustos.</p>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <p><strong>Conclusión:</strong> El sistema deduce tu destino ideal automáticamente.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="main-layout">
+            <!-- Columna Izquierda: Hechos (Memoria de Trabajo) -->
+            <div class="input-side">
+                <section class="glass-panel">
+                    <h2><span class="icon">📝</span> MEMORIA DE TRABAJO</h2>
+                    <p class="hint">Activa hechos iniciales o intermedios:</p>
+                    <div class="fact-groups">
+                        <div class="fact-group">
+                            <h3 class="group-title">Hechos Base</h3>
+                            <div class="preference-grid">
+                                {% for fact in facts if fact.type == 'base' %}
+                                <div class="pref-item">
+                                    <label class="custom-checkbox-container">
+                                        <input type="checkbox" name="preference" value="{{ fact.id }}" onchange="startReasoning()">
+                                        <span class="custom-checkbox"></span>
+                                        <div class="pref-text">
+                                            <strong>{{ fact.label }}</strong>
+                                            <small>{{ fact.desc }}</small>
+                                        </div>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        {% set inferred_facts = facts | selectattr("type", "in", ["custom", "inferred"]) | list %}
+                        {% if inferred_facts %}
+                        <div class="fact-group">
+                            <h3 class="group-title">Hechos Personalizados / Deducidos</h3>
+                            <div class="preference-grid">
+                                {% for fact in inferred_facts %}
+                                <div class="pref-item special">
+                                    <label class="custom-checkbox-container">
+                                        <input type="checkbox" name="preference" value="{{ fact.id }}" onchange="startReasoning()">
+                                        <span class="custom-checkbox"></span>
+                                        <div class="pref-text">
+                                            <strong>{{ fact.label }}</strong>
+                                            <small>{{ fact.desc }}</small>
+                                        </div>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </section>
+            </div>
+
+            <!-- Columna Derecha: Razonamiento -->
+            <div class="reasoning-side">
+                <section class="glass-panel">
+                    <h2><span class="icon">⚙️</span> LÓGICA DEL MOTOR</h2>
+                    <div id="reasoning-steps" class="steps-container">
+                        <p class="empty-msg">El motor está esperando hechos para empezar a razonar...</p>
+                    </div>
+                </section>
+
+                <section class="glass-panel">
+                    <h2><span class="icon">🎯</span> CONCLUSIONES OBTENIDAS</h2>
+                    <div id="final-results" class="final-results">
+                        <div class="result-placeholder">Aún no hay conclusiones.</div>
+                    </div>
+                </section>
+
+                <!-- Nuevo: Encadenamiento hacia atrás -->
+                <section class="glass-panel backward-section">
+                    <h2><span class="icon">🔍</span> ENCADENAMIENTO HACIA ATRÁS</h2>
+                    <p class="hint">Selecciona una meta para que el motor intente probarla:</p>
+                    <div class="goal-selector-group">
+                        <select id="goal-selector" class="goal-select">
+                            <option value="">-- Seleccionar Meta --</option>
+                            {% for fact in facts if fact.type != 'base' or fact.id.startswith('destino') %}
+                            <option value="{{ fact.id }}">{{ fact.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <button onclick="verifyGoal()" class="btn-goal">Verificar Meta</button>
+                    </div>
+                    <div id="goal-result-status" class="goal-status-box"></div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Creador de Reglas (Didáctico) -->
+        <section class="glass-panel rule-builder-section">
+            <div class="builder-header">
+                <h2><span class="icon">🛠️</span> CREADOR DE REGLAS INTERACTIVO</h2>
+                <div class="helper-text">Permite crear <strong>encadenamiento</strong>: usa una conclusión previa como condición de una nueva regla.</div>
+            </div>
+            
+            <div class="builder-container">
+                <form id="rule-form" class="rule-form">
+                    <div class="form-group">
+                        <label>Nombre de la Regla:</label>
+                        <input type="text" id="rule-name" placeholder="Ej: Perfil Aventurero" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Si se cumplen estos hechos (SI...):</label>
+                            <div id="conditions-list" class="checkbox-group-scroll">
+                                {% for fact in facts %}
+                                <label class="chip-checkbox {{ 'chip-special' if fact.type != 'base' }}">
+                                    <input type="checkbox" name="rule-condition" value="{{ fact.id }}">
+                                    <span>{{ fact.label }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Entonces se deduce (ENTONCES...):</label>
+                            <div class="conclusion-input-group">
+                                <input type="text" id="rule-conclusion-id" placeholder="ID (ej: perfil_pro)" required>
+                                <input type="text" id="rule-conclusion-label" placeholder="Nombre (ej: Perfil Pro)" required>
+                            </div>
+                            <p class="hint">Este nuevo hecho podrá usarse como condición para otras reglas después de guardarlo.</p>
+                            
+                            <label style="margin-top: 15px;">Prioridad de la Regla (Resolución de Conflictos):</label>
+                            <input type="number" id="rule-priority" value="0" min="0" max="100" style="width: 80px;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Explicación didáctica:</label>
+                        <textarea id="rule-explanation" rows="2" placeholder="¿Por qué esta regla es válida?" required></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Añadir Regla al Motor</button>
+                        <button type="button" onclick="resetRules()" class="btn-secondary">Resetear Todo</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Base de Conocimiento -->
+        <section class="glass-panel">
+            <h2><span class="icon">📚</span> BASE DE CONOCIMIENTO (REGLAS)</h2>
+            <div class="rules-explorer">
+                <div id="rules-display-list" class="rules-list">
+                    {% for rule in rules %}
+                    <div class="rule-box">
+                        <div class="rule-id">{{ rule.id }}</div>
+                        <div class="rule-content">
+                            <h4>{{ rule.name }}</h4>
+                            <code class="logic-display">{{ rule.logic }}</code>
+                            <p class="rule-desc">{{ rule.explanation }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <!-- Logs del Motor -->
+        <section class="glass-panel console-section">
+            <h2><span class="icon">💻</span> LOGS DEL MOTOR (DEBUG)</h2>
+            <div id="console-output" class="console-box">
+                <div class="log-entry system">[SYSTEM] Motor listo. Esperando datos...</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/js/script.js"></script>
+</body>
+</html>
